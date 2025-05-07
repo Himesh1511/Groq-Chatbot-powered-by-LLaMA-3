@@ -4,6 +4,15 @@ import time
 import PyPDF2
 import io
 
+
+
+
+# === Page Configuration ===
+st.set_page_config(
+    page_title="Groq LLaMA 3 Chatbot",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 # === File Upload Section ===
 st.subheader("Document Q&A")
 
@@ -23,14 +32,6 @@ if uploaded_file:
         st.success("File uploaded and content loaded.")
     else:
         st.warning("Could not extract content from the file.")
-
-
-# === Page Configuration ===
-st.set_page_config(
-    page_title="Groq LLaMA 3 Chatbot",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
 # === Sidebar: Only Clear Chat Button ===
 with st.sidebar:
