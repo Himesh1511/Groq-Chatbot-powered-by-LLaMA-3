@@ -20,7 +20,7 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 if "input_box" not in st.session_state:
-    st.session_state.input_box = ""
+    st.session_state.pop("input_box", None)
 
 # === Sidebar: Controls and File Upload ===
 with st.sidebar:
