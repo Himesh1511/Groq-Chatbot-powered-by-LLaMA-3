@@ -32,6 +32,13 @@ with st.sidebar:
             st.success("File uploaded and content loaded.")
         else:
             st.warning("Could not extract content from the file.")
+    # === Repeat Button ===
+if st.button("🔁 Repeat Last Message"):
+    if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
+        st.session_state.input_box = st.session_state.chat_history[-1]["content"]
+    else:
+        st.warning("No previous user message to repeat.")
+            
 
     # Clear chat button
     if st.button("🧹 Clear Chat"):
@@ -53,12 +60,7 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === Repeat Button ===
-if st.button("🔁 Repeat Last Message"):
-    if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
-        st.session_state.input_box = st.session_state.chat_history[-1]["content"]
-    else:
-        st.warning("No previous user message to repeat.")
+
 
 # === Display Chat History ===
 st.write("### Chat")
