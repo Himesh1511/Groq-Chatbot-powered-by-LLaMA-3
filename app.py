@@ -11,64 +11,65 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# === Load Groq API Key ===
-groq_api_key = st.secrets["GROQ_API_KEY"]
-
-# === Initialize Session State ===
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [
-        {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
-    ]
-if "input_box" not in st.session_state:
-    st.session_state.pop("input_box", None)
-
-# === Sidebar: Controls and File Upload ===
+# === Sidebar: Controls ===
 with st.sidebar:
     st.header("Chat Controls")
-    
+
     if st.button("Clear Chat"):
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
         ]
-        st.session_state.input_box = ""
 
     if st.button("Repeat Last Message"):
-        # Re-send the last user message
-        for msg in reversed(st.session_state.chat_history):
-            if msg["role"] == "user":
-                st.session_state.input_box = msg["content"]
-                break
+        if st.session_state.get("chat_history"):
+            last_user = next(
+                (msg["content"] for msg in reversed(st.session_state.chat_history) if msg["role"] == "user"), None)
+            if last_user:
+                st.session_state.repeat_message = last_user
 
     if st.button("Edit Last Message"):
-        for msg in reversed(st.session_state.chat_history):
-            if msg["role"] == "user":
-                st.session_state.input_box = msg["content"]
-                break
-
-    st.markdown("---")
-    uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
-    file_text = ""
-
-    if uploaded_file:
-        if uploaded_file.type == "application/pdf":
-            pdf_reader = PyPDF2.PdfReader(uploaded_file)
-            for page in pdf_reader.pages:
-                file_text += page.extract_text() or ""
-        elif uploaded_file.type == "text/plain":
-            stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
-            file_text = stringio.read()
-
-        if file_text.strip():
-            st.success("File uploaded and content loaded.")
-            st.session_state.chat_history.append({
-                "role": "user",
-                "content": "Summarize the following document:\n" + file_text[:3000]
-            })
-        else:
-            st.warning("Could not extract content from the file.")
+        if st.session_state.get("chat_history"):
+            for i in reversed(range(len(st.session_state.chat_history))):
+                if st.session_state.chat_history[i]["role"] == "user":
+                    st.session_state.edited_message = st.session_state.chat_history[i]["content"]
+                    st.session_state.chat_history.pop(i)
+                    break
 
 # === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
+
+# === Load Groq API Key ===
+groq_api_key = st.secrets.get("GROQ_API_KEY")
+
+# === Initialize Chat History ===
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [
+        {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
+    ]
+
+# === File Upload Section ===
+st.subheader("Document Q&A")
+uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
+file_text = ""
+
+if uploaded_file:
+    if uploaded_file.type == "application/pdf":
+        pdf_reader = PyPDF2.PdfReader(uploaded_file)
+        for page in pdf_reader.pages:
+            file_text += page.extract_text() or ""
+    elif uploaded_file.type == "text/plain":
+        stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
+        file_text = stringio.read()
+
+    if file_text.strip():
+        st.success("File uploaded and content loaded.")
+        # Add the file text as system context
+        st.session_state.chat_history.append({
+            "role": "system",
+            "content": f"The following document has been uploaded by the user. Use it to answer questions:\n{file_text[:4000]}"
+        })
+    else:
+        st.warning("Could not extract content from the file.")
 
 # === Display Chat History ===
 st.write("### Chat")
@@ -76,38 +77,22 @@ for message in st.session_state.chat_history:
     if message["role"] == "user":
         st.markdown(f"**You:** {message['content']}")
     elif message["role"] == "assistant":
-        st.markdown(f"**Assistant:**\n\n{message['content']}", unsafe_allow_html=True)
+        st.markdown(f"**Assistant:** {message['content']}")
 
-# === Fixed Bottom Input Box ===
-st.markdown("""
-    <style>
-    .bottom-form-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: white;
-        padding: 1rem 2rem;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        z-index: 9999;
-    }
-    .block-container {
-        padding-bottom: 200px !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# === Chat Input ===
+user_input = st.chat_input("Type your message here...")
 
-with st.container():
-    st.markdown('<div class="bottom-form-container">', unsafe_allow_html=True)
-    with st.form(key="chat_form", clear_on_submit=True):
-        user_input = st.text_input("Type your message here...", value=st.session_state.input_box, key="input_box")
-        submitted = st.form_submit_button("Send")
-    st.markdown('</div>', unsafe_allow_html=True)
+# === Use repeated or edited message if available ===
+if "repeat_message" in st.session_state:
+    user_input = st.session_state.pop("repeat_message")
 
-# === Handle User Submission ===
-if submitted and groq_api_key and user_input:
+if "edited_message" in st.session_state:
+    user_input = st.chat_input("Edit your last message...", value=st.session_state.pop("edited_message"))
+
+# === Generate Assistant Response ===
+if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.session_state.input_box = ""  # Clear input field
+    st.markdown(f"**You:** {user_input}")
 
     try:
         client = OpenAI(
@@ -126,7 +111,7 @@ if submitted and groq_api_key and user_input:
         for chunk in response:
             content = chunk.choices[0].delta.content or ""
             assistant_response += content
-            response_container.markdown(f"**Assistant:**\n\n{assistant_response}", unsafe_allow_html=True)
+            response_container.markdown(f"**Assistant:** {assistant_response}")
             time.sleep(0.02)
 
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
