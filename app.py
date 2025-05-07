@@ -11,11 +11,22 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# === Sidebar ===
+# === Sidebar: Chat Controls ===
 with st.sidebar:
     st.header("Chat Controls")
+    if st.button("Clear Chat"):
+        st.session_state.chat_history = [
+            {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
+        ]
+        st.session_state.input_box = ""
+    if st.button("Repeat Last Message"):
+        if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
+            st.session_state.input_box = st.session_state.chat_history[-1]["content"]
+    if st.button("Edit Last Message"):
+        if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
+            st.session_state.input_box = st.session_state.chat_history[-1]["content"]
 
-    # File upload
+    # === File Upload Section ===
     uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
     file_text = ""
 
@@ -30,28 +41,18 @@ with st.sidebar:
 
         if file_text.strip():
             st.success("File uploaded and content loaded.")
+            # Add summarization to history
+            st.session_state.chat_history.append({
+                "role": "user",
+                "content": "Summarize the following document:\n" + file_text[:3000]
+            })
         else:
             st.warning("Could not extract content from the file.")
-    # === Repeat Button ===
-if st.button("🔁 Repeat Last Message"):
-    if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
-        st.session_state.input_box = st.session_state.chat_history[-1]["content"]
-    else:
-        st.warning("No previous user message to repeat.")
-            
 
-    # Clear chat button
-    if st.button("🧹 Clear Chat"):
-        st.session_state.chat_history = [
-            {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
-        ]
-        st.session_state.input_box = ""
-
-
-# === Page Title ===
+# === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
 
-# === API Key ===
+# === Load Groq API Key ===
 groq_api_key = st.secrets["GROQ_API_KEY"]
 
 # === Initialize Chat History ===
@@ -60,44 +61,24 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-
-
 # === Display Chat History ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
     if message["role"] == "user":
         st.markdown(f"**You:** {message['content']}")
     elif message["role"] == "assistant":
-        st.markdown(f"**Assistant:** {message['content']}")
+        st.markdown(f"**Assistant:**\n\n{message['content']}", unsafe_allow_html=True)
 
-# === Styling for fixed footer input ===
+# === User Input (Locked at bottom) ===
 st.markdown("""
 <style>
-/* Hide default input label */
-label[for="input_box"] {
-    display: none;
-}
-input[data-baseweb="input"] {
-    position: fixed;
-    bottom: 1.5rem;
-    left: 1rem;
-    width: 75vw;
-    z-index: 100;
-}
-button[kind="primary"] {
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1rem;
-    z-index: 100;
-}
+.stForm {position: fixed; bottom: 0; background: white; width: 100%; padding: 1rem; z-index: 999;}
 </style>
 """, unsafe_allow_html=True)
 
-# === Input Field (Fixed Footer) ===
-default_input = st.session_state.get("input_box", "")
-
 with st.form(key="chat_form", clear_on_submit=True):
-    user_input = st.text_input("", value=default_input, key="input_box", placeholder="Type your message here...")
+    default_val = st.session_state.get("input_box", "")
+    user_input = st.text_input("Type your message here...", value=default_val, key="input_box_form")
     submitted = st.form_submit_button("Send")
 
 if submitted and groq_api_key and user_input:
@@ -110,15 +91,6 @@ if submitted and groq_api_key and user_input:
             base_url="https://api.groq.com/openai/v1"
         )
 
-        # If file is uploaded, prepend its content to context
-        if file_text.strip():
-            context_message = {
-                "role": "system",
-                "content": f"The user uploaded a document. Use this information when helpful:\n{file_text[:3000]}"
-            }
-            st.session_state.chat_history.insert(1, context_message)
-
-        # Call the model with streaming
         response = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=st.session_state.chat_history,
@@ -130,11 +102,10 @@ if submitted and groq_api_key and user_input:
         for chunk in response:
             content = chunk.choices[0].delta.content or ""
             assistant_response += content
-            response_container.markdown(f"**Assistant:** {assistant_response}")
+            response_container.markdown(f"**Assistant:**\n\n{assistant_response}", unsafe_allow_html=True)
             time.sleep(0.02)
 
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
-        st.session_state.input_box = ""  # Clear stored input box
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
