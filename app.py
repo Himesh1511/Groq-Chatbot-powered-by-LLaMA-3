@@ -67,10 +67,36 @@ for message in st.session_state.chat_history:
     elif message["role"] == "assistant":
         st.markdown(f"**Assistant:** {message['content']}")
 
-# === User Input ===
+# === User Input (Fixed at Footer) ===
+st.markdown("""
+    <style>
+    .stTextInput > div > div > input {
+        position: fixed;
+        bottom: 10px;
+        width: 80%;
+        left: 10%;
+        z-index: 100;
+    }
+    .stButton > button {
+        position: fixed;
+        bottom: 10px;
+        right: 10%;
+        z-index: 100;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 with st.form(key="chat_form", clear_on_submit=True):
     user_input = st.text_input("Type your message here...")
     submitted = st.form_submit_button("Send")
+
+    # Add a button for repeating or editing the last message
+    if st.button("Repeat Last Message"):
+        if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
+            last_message = st.session_state.chat_history[-1]["content"]
+            user_input = last_message
+        else:
+            st.warning("No previous message to repeat.")
 
 if submitted and groq_api_key and user_input:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
