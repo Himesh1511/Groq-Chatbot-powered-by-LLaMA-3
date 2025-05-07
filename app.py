@@ -4,19 +4,18 @@ import time
 import PyPDF2
 import io
 
-
-
-
 # === Page Configuration ===
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
     layout="wide",
     initial_sidebar_state="expanded",
 )
-# === File Upload Section ===
-st.subheader("Document Q&A")
 
-uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
+# === File Upload Section in Sidebar ===
+with st.sidebar:
+    st.header("Chat Controls")
+    uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
+    
 file_text = ""
 
 if uploaded_file:
@@ -29,20 +28,17 @@ if uploaded_file:
         file_text = stringio.read()
 
     if file_text.strip():
-        st.success("File uploaded and content loaded.")
+        st.sidebar.success("File uploaded and content loaded.")
     else:
-        st.warning("Could not extract content from the file.")
+        st.sidebar.warning("Could not extract content from the file.")
 
-# === Sidebar: Only Clear Chat Button ===
+# === Clear Chat Button ===
 with st.sidebar:
-    st.header("Chat Controls")
     if st.button("Clear Chat"):
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
         ]
         st.session_state.input_box = ""  # Also clear input
-
-
 
 # === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
@@ -55,6 +51,13 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
+
+# === Prepend File Content to Chat Context ===
+if file_text:
+    st.session_state.chat_history.insert(1, {
+        "role": "system",
+        "content": f"The following document was uploaded by the user:\n\n{file_text[:4000]}\n\nUse this content to help answer their questions.",
+    })
 
 # === Display Chat History ===
 st.write("### Chat")
