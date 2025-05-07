@@ -11,22 +11,41 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# === Sidebar: Chat Controls ===
+# === Load Groq API Key ===
+groq_api_key = st.secrets["GROQ_API_KEY"]
+
+# === Initialize Session State ===
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [
+        {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
+    ]
+if "input_box" not in st.session_state:
+    st.session_state.input_box = ""
+
+# === Sidebar: Controls and File Upload ===
 with st.sidebar:
     st.header("Chat Controls")
+    
     if st.button("Clear Chat"):
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
         ]
         st.session_state.input_box = ""
-    if st.button("Repeat Last Message"):
-        if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
-            st.session_state.input_box = st.session_state.chat_history[-1]["content"]
-    if st.button("Edit Last Message"):
-        if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
-            st.session_state.input_box = st.session_state.chat_history[-1]["content"]
 
-    # === File Upload Section ===
+    if st.button("Repeat Last Message"):
+        # Re-send the last user message
+        for msg in reversed(st.session_state.chat_history):
+            if msg["role"] == "user":
+                st.session_state.input_box = msg["content"]
+                break
+
+    if st.button("Edit Last Message"):
+        for msg in reversed(st.session_state.chat_history):
+            if msg["role"] == "user":
+                st.session_state.input_box = msg["content"]
+                break
+
+    st.markdown("---")
     uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
     file_text = ""
 
@@ -41,7 +60,6 @@ with st.sidebar:
 
         if file_text.strip():
             st.success("File uploaded and content loaded.")
-            # Add summarization to history
             st.session_state.chat_history.append({
                 "role": "user",
                 "content": "Summarize the following document:\n" + file_text[:3000]
@@ -52,15 +70,6 @@ with st.sidebar:
 # === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
 
-# === Load Groq API Key ===
-groq_api_key = st.secrets["GROQ_API_KEY"]
-
-# === Initialize Chat History ===
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [
-        {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
-    ]
-
 # === Display Chat History ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
@@ -69,21 +78,36 @@ for message in st.session_state.chat_history:
     elif message["role"] == "assistant":
         st.markdown(f"**Assistant:**\n\n{message['content']}", unsafe_allow_html=True)
 
-# === User Input (Locked at bottom) ===
+# === Fixed Bottom Input Box ===
 st.markdown("""
-<style>
-.stForm {position: fixed; bottom: 0; background: white; width: 100%; padding: 1rem; z-index: 999;}
-</style>
+    <style>
+    .bottom-form-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: white;
+        padding: 1rem 2rem;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        z-index: 9999;
+    }
+    .block-container {
+        padding-bottom: 200px !important;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
-with st.form(key="chat_form", clear_on_submit=True):
-    default_val = st.session_state.get("input_box", "")
-    user_input = st.text_input("Type your message here...", value=default_val, key="input_box_form")
-    submitted = st.form_submit_button("Send")
+with st.container():
+    st.markdown('<div class="bottom-form-container">', unsafe_allow_html=True)
+    with st.form(key="chat_form", clear_on_submit=True):
+        user_input = st.text_input("Type your message here...", value=st.session_state.input_box, key="input_box")
+        submitted = st.form_submit_button("Send")
+    st.markdown('</div>', unsafe_allow_html=True)
 
+# === Handle User Submission ===
 if submitted and groq_api_key and user_input:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.markdown(f"**You:** {user_input}")
+    st.session_state.input_box = ""  # Clear input field
 
     try:
         client = OpenAI(
