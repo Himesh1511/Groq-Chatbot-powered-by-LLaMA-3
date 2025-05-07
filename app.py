@@ -10,17 +10,14 @@ st.set_page_config(
 )
 
 # === Sidebar: Only Clear Chat Button ===
-# === Sidebar: Only Clear Chat Button ===
-clear_chat = False
 with st.sidebar:
     st.header("Chat Controls")
-    clear_chat = st.button("Clear Chat")
+    if st.button("Clear Chat"):
+        st.session_state.chat_history = [
+            {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
+        ]
+        st.session_state.input_box = ""  # Also clear input
 
-if clear_chat:
-    st.session_state.chat_history = [
-        {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
-    ]
-    st.experimental_rerun()
 
 
 # === Title ===
