@@ -1,34 +1,36 @@
 import streamlit as st
 from openai import OpenAI
+import time
 
 # === Page Configuration ===
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
-    page_icon="🦩",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# === Sidebar for User Configuration ===
+# === Sidebar: Only Clear Chat Button ===
 with st.sidebar:
-    st.header("🔧 Configuration")
-    st.markdown("---")
-    st.write("🟢 **Model Details:**")
-    st.text("LLaMA 3 - 8B / 70B-8192 Context")
+    st.header("Chat Controls")
+    if st.button("Clear Chat"):
+        st.session_state.chat_history = [
+            {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
+        ]
+        st.experimental_rerun()
 
-# === Main Chat Interface ===
-st.title("🦩 Groq Chatbot powered by LLaMA 3")
+# === Title ===
+st.title("Groq Chatbot powered by LLaMA 3")
 
-# Load Groq API Key from Streamlit Secrets
+# === Load Groq API Key ===
 groq_api_key = st.secrets["GROQ_API_KEY"]
 
-# Initialize session state for chat history
+# === Initialize Chat History ===
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# Display past chat messages
+# === Display Chat History ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
     if message["role"] == "user":
@@ -36,11 +38,12 @@ for message in st.session_state.chat_history:
     elif message["role"] == "assistant":
         st.markdown(f"**Assistant:** {message['content']}")
 
-# Input message box
-user_input = st.text_input("Type your message here...", key="input_box")
+# === User Input ===
+with st.form(key="chat_form", clear_on_submit=True):
+    user_input = st.text_input("Type your message here...")
+    submitted = st.form_submit_button("Send")
 
-if st.button("Send") and groq_api_key and user_input:
-    # Display user input
+if submitted and groq_api_key and user_input:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
     st.markdown(f"**You:** {user_input}")
 
@@ -51,22 +54,23 @@ if st.button("Send") and groq_api_key and user_input:
             base_url="https://api.groq.com/openai/v1"
         )
 
-        # Create chat completion
+        # Call the model with streaming
         response = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=st.session_state.chat_history,
             stream=True
         )
 
-        # Stream assistant response
+        # Typing animation
         assistant_response = ""
         response_container = st.empty()
         for chunk in response:
             content = chunk.choices[0].delta.content or ""
             assistant_response += content
+            # Simulate typing effect
             response_container.markdown(f"**Assistant:** {assistant_response}")
+            time.sleep(0.02)
 
-        # Save assistant response to session state
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
 
     except Exception as e:
