@@ -1,6 +1,29 @@
 import streamlit as st
 from openai import OpenAI
 import time
+import PyPDF2
+import io
+
+# === File Upload Section ===
+st.subheader("Document Q&A")
+
+uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
+file_text = ""
+
+if uploaded_file:
+    if uploaded_file.type == "application/pdf":
+        pdf_reader = PyPDF2.PdfReader(uploaded_file)
+        for page in pdf_reader.pages:
+            file_text += page.extract_text() or ""
+    elif uploaded_file.type == "text/plain":
+        stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
+        file_text = stringio.read()
+
+    if file_text.strip():
+        st.success("File uploaded and content loaded.")
+    else:
+        st.warning("Could not extract content from the file.")
+
 
 # === Page Configuration ===
 st.set_page_config(
