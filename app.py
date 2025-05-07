@@ -1,10 +1,10 @@
 import streamlit as st
-from openai import AsyncOpenAI, OpenAI
+from openai import OpenAI
 
 # === Page Configuration ===
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
-    page_icon="🦙",
+    page_icon="🦩",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -12,13 +12,15 @@ st.set_page_config(
 # === Sidebar for User Configuration ===
 with st.sidebar:
     st.header("🔧 Configuration")
-    groq_api_key = st.text_input("🔑 API Key", type="password", help="Enter your Groq API Key")
     st.markdown("---")
     st.write("🟢 **Model Details:**")
     st.text("LLaMA 3 - 8B / 70B-8192 Context")
 
 # === Main Chat Interface ===
-st.title("🦙 Groq Chatbot powered by LLaMA 3")
+st.title("🦩 Groq Chatbot powered by LLaMA 3")
+
+# Load Groq API Key from Streamlit Secrets
+groq_api_key = st.secrets["GROQ_API_KEY"]
 
 # Initialize session state for chat history
 if "chat_history" not in st.session_state:
@@ -43,7 +45,7 @@ if st.button("Send") and groq_api_key and user_input:
     st.markdown(f"**You:** {user_input}")
 
     try:
-        # Initialize OpenAI client
+        # Initialize OpenAI client with Groq API
         client = OpenAI(
             api_key=groq_api_key,
             base_url="https://api.groq.com/openai/v1"
@@ -51,7 +53,7 @@ if st.button("Send") and groq_api_key and user_input:
 
         # Create chat completion
         response = client.chat.completions.create(
-            model="llama3-8b-8192",  # Choose model variant
+            model="llama3-8b-8192",
             messages=st.session_state.chat_history,
             stream=True
         )
@@ -71,4 +73,4 @@ if st.button("Send") and groq_api_key and user_input:
         st.error(f"Error: {str(e)}")
 
 elif not groq_api_key:
-    st.warning("Please provide your API Key in the sidebar to start chatting.")
+    st.warning("Please provide your Groq API Key in Streamlit secrets to start chatting.")
