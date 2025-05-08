@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# === Sidebar: Controls ===
+# === Sidebar: Controls and File Upload ===
 with st.sidebar:
     st.header("Chat Controls")
 
@@ -19,6 +19,8 @@ with st.sidebar:
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
         ]
+        st.session_state.pop("repeat_message", None)
+        st.session_state.pop("edited_message", None)
 
     if st.button("Repeat Last Message"):
         if st.session_state.get("chat_history"):
@@ -35,6 +37,28 @@ with st.sidebar:
                     st.session_state.chat_history.pop(i)
                     break
 
+    st.subheader("Upload Document")
+    uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
+    file_text = ""
+
+    if uploaded_file:
+        if uploaded_file.type == "application/pdf":
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            for page in pdf_reader.pages:
+                file_text += page.extract_text() or ""
+        elif uploaded_file.type == "text/plain":
+            stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
+            file_text = stringio.read()
+
+        if file_text.strip():
+            st.success("File uploaded and content loaded.")
+            st.session_state.chat_history.append({
+                "role": "system",
+                "content": f"The following document has been uploaded by the user. Use it to answer questions:\n{file_text[:4000]}"
+            })
+        else:
+            st.warning("Could not extract content from the file.")
+
 # === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
 
@@ -47,30 +71,6 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === File Upload Section ===
-st.subheader("Document Q&A")
-uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
-file_text = ""
-
-if uploaded_file:
-    if uploaded_file.type == "application/pdf":
-        pdf_reader = PyPDF2.PdfReader(uploaded_file)
-        for page in pdf_reader.pages:
-            file_text += page.extract_text() or ""
-    elif uploaded_file.type == "text/plain":
-        stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
-        file_text = stringio.read()
-
-    if file_text.strip():
-        st.success("File uploaded and content loaded.")
-        # Add the file text as system context
-        st.session_state.chat_history.append({
-            "role": "system",
-            "content": f"The following document has been uploaded by the user. Use it to answer questions:\n{file_text[:4000]}"
-        })
-    else:
-        st.warning("Could not extract content from the file.")
-
 # === Display Chat History ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
@@ -80,14 +80,22 @@ for message in st.session_state.chat_history:
         st.markdown(f"**Assistant:** {message['content']}")
 
 # === Chat Input ===
-user_input = st.chat_input("Type your message here...")
-
-# === Use repeated or edited message if available ===
-if "repeat_message" in st.session_state:
-    user_input = st.session_state.pop("repeat_message")
+input_prompt = "Type your message here..."
+default_input = None
 
 if "edited_message" in st.session_state:
-    user_input = st.chat_input("Edit your last message...", value=st.session_state.pop("edited_message"))
+    input_prompt = "Editing your last message..."
+    default_input = st.session_state.pop("edited_message")
+
+if "repeat_message" in st.session_state:
+    default_input = st.session_state.pop("repeat_message")
+
+# Streamlit does not support `value=` in st.chat_input(), so we simulate it
+user_input = st.chat_input(input_prompt)
+
+# Override if we had pre-filled input
+if user_input is None and default_input:
+    user_input = default_input
 
 # === Generate Assistant Response ===
 if user_input and groq_api_key:
