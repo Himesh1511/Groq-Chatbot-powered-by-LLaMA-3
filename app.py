@@ -97,6 +97,7 @@ user_input = st.chat_input(input_prompt)
 if user_input is None and default_input:
     user_input = default_input
 
+
 # === Generate Assistant Response ===
 if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
