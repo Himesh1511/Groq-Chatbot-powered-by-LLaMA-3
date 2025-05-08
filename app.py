@@ -71,13 +71,42 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === Display Chat History ===
-st.write("### Chat")
-for message in st.session_state.chat_history:
-    if message["role"] == "user":
-        st.markdown(f"**You:** {message['content']}")
-    elif message["role"] == "assistant":
-        st.markdown(f"**Assistant:** {message['content']}")
+# === Display Chat History with Chat Bubbles ===
+chat_css = """
+<style>
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 0;
+}
+.chat-message {
+    max-width: 80%;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+.user-message {
+    align-self: flex-end;
+    background-color: #DCF8C6;
+    text-align: right;
+}
+.assistant-message {
+    align-self: flex-start;
+    background-color: #F1F0F0;
+    text-align: left;
+}
+</style>
+<div class="chat-container">
+"""
+for msg in st.session_state.chat_history:
+    if msg["role"] == "system":
+        continue
+    role_class = "user-message" if msg["role"] == "user" else "assistant-message"
+    chat_css += f'<div class="chat-message {role_class}">{msg["content"]}</div>'
+chat_css += "</div>"
+st.markdown(chat_css, unsafe_allow_html=True)
 
 # === Chat Input ===
 input_prompt = "Type your message here..."
@@ -87,21 +116,18 @@ if "edited_message" in st.session_state:
     input_prompt = "Editing your last message..."
     default_input = st.session_state.pop("edited_message")
 
-if "repeat_message" in st.session_state:
+elif "repeat_message" in st.session_state:
     default_input = st.session_state.pop("repeat_message")
 
-# Streamlit does not support `value=` in st.chat_input(), so we simulate it
 user_input = st.chat_input(input_prompt)
 
-# Override if we had pre-filled input
 if user_input is None and default_input:
-    user_input = default_input
-
+    st.warning(f"{input_prompt} (copied below for editing):")
+    user_input = st.text_area("Edit below and press Enter:", default_input, height=100)
 
 # === Generate Assistant Response ===
 if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.markdown(f"**You:** {user_input}")
 
     try:
         client = OpenAI(
@@ -120,7 +146,12 @@ if user_input and groq_api_key:
         for chunk in response:
             content = chunk.choices[0].delta.content or ""
             assistant_response += content
-            response_container.markdown(f"**Assistant:** {assistant_response}")
+            chat_bubble = f"""
+            <div class="chat-container">
+                <div class="chat-message assistant-message">{assistant_response}</div>
+            </div>
+            """
+            response_container.markdown(chat_bubble + "<style>" + chat_css + "</style>", unsafe_allow_html=True)
             time.sleep(0.02)
 
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
