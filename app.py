@@ -4,18 +4,16 @@ import time
 import PyPDF2
 import io
 
-# === Page Config ===
-st.set_page_config("Groq LLaMA 3 Chatbot", layout="wide", initial_sidebar_state="expanded")
+# === Page Configuration ===
+st.set_page_config(
+    page_title="Groq LLaMA 3 Chatbot",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-# === Initialize Chat History ===
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [
-        {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
-    ]
-
-# === Sidebar ===
+# === Sidebar: Controls and File Upload ===
 with st.sidebar:
-    st.header("Controls")
+    st.header("Chat Controls")
 
     if st.button("Clear Chat"):
         st.session_state.chat_history = [
@@ -25,107 +23,110 @@ with st.sidebar:
         st.session_state.pop("edited_message", None)
 
     if st.button("Repeat Last Message"):
-        for msg in reversed(st.session_state.chat_history):
-            if msg["role"] == "user":
-                st.session_state.repeat_message = msg["content"]
-                break
+        if st.session_state.get("chat_history"):
+            last_user = next(
+                (msg["content"] for msg in reversed(st.session_state.chat_history) if msg["role"] == "user"), None)
+            if last_user:
+                st.session_state.repeat_message = last_user
 
     if st.button("Edit Last Message"):
-        for i in reversed(range(len(st.session_state.chat_history))):
-            if st.session_state.chat_history[i]["role"] == "user":
-                st.session_state.edited_message = st.session_state.chat_history[i]["content"]
-                st.session_state.chat_history.pop(i)
-                break
+        if st.session_state.get("chat_history"):
+            for i in reversed(range(len(st.session_state.chat_history))):
+                if st.session_state.chat_history[i]["role"] == "user":
+                    st.session_state.edited_message = st.session_state.chat_history[i]["content"]
+                    st.session_state.chat_history.pop(i)
+                    break
 
-    st.subheader("Upload File")
-    uploaded_file = st.file_uploader("Upload a PDF or TXT", type=["pdf", "txt"])
+    st.subheader("Upload Document")
+    uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
+    file_text = ""
+
     if uploaded_file:
-        file_text = ""
         if uploaded_file.type == "application/pdf":
-            reader = PyPDF2.PdfReader(uploaded_file)
-            for page in reader.pages:
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            for page in pdf_reader.pages:
                 file_text += page.extract_text() or ""
-        else:
-            file_text = io.StringIO(uploaded_file.getvalue().decode("utf-8")).read()
+        elif uploaded_file.type == "text/plain":
+            stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
+            file_text = stringio.read()
 
         if file_text.strip():
-            st.success("File content loaded.")
+            st.success("File uploaded and content loaded.")
             st.session_state.chat_history.append({
                 "role": "system",
-                "content": f"The user uploaded the following document:\n{file_text[:4000]}"
+                "content": f"The following document has been uploaded by the user. Use it to answer questions:\n{file_text[:4000]}"
             })
         else:
-            st.warning("Couldn't extract content.")
+            st.warning("Could not extract content from the file.")
 
 # === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
 
-# === Load API Key ===
+# === Load Groq API Key ===
 groq_api_key = st.secrets.get("GROQ_API_KEY")
-if not groq_api_key:
-    st.warning("Set your Groq API Key in secrets to chat.")
-    st.stop()
 
-# === Message Renderer ===
-def render_chat():
-    for msg in st.session_state.chat_history:
-        if msg["role"] == "system":
-            continue
-        with st.container():
-            if msg["role"] == "user":
-                st.markdown(
-                    f"""<div style="text-align: right; background-color: #dcf8c6; padding: 0.7em; border-radius: 10px; margin: 5px 0;">{msg["content"]}</div>""",
-                    unsafe_allow_html=True
-                )
-            else:
-                st.markdown(
-                    f"""<div style="text-align: left; background-color: #f1f0f0; padding: 0.7em; border-radius: 10px; margin: 5px 0;">{msg["content"]}</div>""",
-                    unsafe_allow_html=True
-                )
+# === Initialize Chat History ===
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [
+        {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
+    ]
 
-render_chat()
+# === Display Chat History ===
+st.write("### Chat")
+for message in st.session_state.chat_history:
+    if message["role"] == "user":
+        st.markdown(f"**You:** {message['content']}")
+    elif message["role"] == "assistant":
+        st.markdown(f"**Assistant:** {message['content']}")
 
-# === Handle Message Input ===
+# === Chat Input ===
 input_prompt = "Type your message here..."
-prefilled = ""
+default_input = None
 
 if "edited_message" in st.session_state:
     input_prompt = "Editing your last message..."
-    prefilled = st.session_state.pop("edited_message")
-elif "repeat_message" in st.session_state:
-    prefilled = st.session_state.pop("repeat_message")
+    default_input = st.session_state.pop("edited_message")
 
-user_input = st.chat_input(input_prompt, key="chat_input")
-if prefilled and not user_input:
-    user_input = prefilled
+if "repeat_message" in st.session_state:
+    default_input = st.session_state.pop("repeat_message")
 
-if user_input:
+# Streamlit does not support `value=` in st.chat_input(), so we simulate it
+user_input = st.chat_input(input_prompt)
+
+# Override if we had pre-filled input
+if user_input is None and default_input:
+    user_input = default_input
+
+
+# === Generate Assistant Response ===
+if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    render_chat()  # Immediately show user message
+    st.markdown(f"**You:** {user_input}")
 
-    with st.spinner("Assistant is typing..."):
-        try:
-            client = OpenAI(
-                api_key=groq_api_key,
-                base_url="https://api.groq.com/openai/v1"
-            )
-            response = client.chat.completions.create(
-                model="llama3-8b-8192",
-                messages=st.session_state.chat_history,
-                stream=True
-            )
-            assistant_reply = ""
-            response_placeholder = st.empty()
-            for chunk in response:
-                token = chunk.choices[0].delta.content or ""
-                assistant_reply += token
-                response_placeholder.markdown(
-                    f"""<div style="text-align: left; background-color: #f1f0f0; padding: 0.7em; border-radius: 10px; margin: 5px 0;">{assistant_reply}</div>""",
-                    unsafe_allow_html=True
-                )
-                time.sleep(0.01)
+    try:
+        client = OpenAI(
+            api_key=groq_api_key,
+            base_url="https://api.groq.com/openai/v1"
+        )
 
-            st.session_state.chat_history.append({"role": "assistant", "content": assistant_reply})
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=st.session_state.chat_history,
+            stream=True
+        )
 
-        except Exception as e:
-            st.error(f"Error: {e}")
+        assistant_response = ""
+        response_container = st.empty()
+        for chunk in response:
+            content = chunk.choices[0].delta.content or ""
+            assistant_response += content
+            response_container.markdown(f"**Assistant:** {assistant_response}")
+            time.sleep(0.02)
+
+        st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
+
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
+
+elif not groq_api_key:
+    st.warning("Please provide your Groq API Key in Streamlit secrets to start chatting.")
