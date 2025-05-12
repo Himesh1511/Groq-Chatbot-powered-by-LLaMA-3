@@ -71,13 +71,17 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === Display Chat History ===
+# === Display Chat History with styled containers ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
     if message["role"] == "user":
-        st.markdown(f"**You:** {message['content']}")
+        st.markdown(
+            f"<div style='text-align: right; background-color: #DCF8C6; padding: 10px; border-radius: 10px; margin: 5px 0;'>{message['content']}</div>",
+            unsafe_allow_html=True)
     elif message["role"] == "assistant":
-        st.markdown(f"**Assistant:** {message['content']}")
+        st.markdown(
+            f"<div style='text-align: left; background-color: #F1F0F0; padding: 10px; border-radius: 10px; margin: 5px 0;'>{message['content']}</div>",
+            unsafe_allow_html=True)
 
 # === Chat Input ===
 input_prompt = "Type your message here..."
@@ -90,19 +94,22 @@ if "edited_message" in st.session_state:
 if "repeat_message" in st.session_state:
     default_input = st.session_state.pop("repeat_message")
 
-# Streamlit does not support `value=` in st.chat_input(), so we simulate it
+# Streamlit does not support pre-filled st.chat_input, simulate with session workaround
 user_input = st.chat_input(input_prompt)
-
-# Override if we had pre-filled input
 if user_input is None and default_input:
-    user_input = default_input
+    st.session_state.pending_input = default_input
+    st.rerun()
 
+if "pending_input" in st.session_state:
+    user_input = st.session_state.pop("pending_input")
 
 # === Generate Assistant Response ===
 if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.markdown(f"**You:** {user_input}")
+    st.rerun()  # Force UI to update immediately after appending user message
 
+    # After rerun, assistant response logic will execute
+if len(st.session_state.chat_history) > 1 and st.session_state.chat_history[-1]["role"] == "user":
     try:
         client = OpenAI(
             api_key=groq_api_key,
@@ -120,10 +127,13 @@ if user_input and groq_api_key:
         for chunk in response:
             content = chunk.choices[0].delta.content or ""
             assistant_response += content
-            response_container.markdown(f"**Assistant:** {assistant_response}")
+            response_container.markdown(
+                f"<div style='text-align: left; background-color: #F1F0F0; padding: 10px; border-radius: 10px; margin: 5px 0;'><strong>Assistant:</strong> {assistant_response}</div>",
+                unsafe_allow_html=True)
             time.sleep(0.02)
 
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
+        st.rerun()
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
