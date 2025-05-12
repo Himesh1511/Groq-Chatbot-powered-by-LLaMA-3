@@ -71,17 +71,34 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === Display Chat History with styled containers ===
+# === Display Chat History with refined containers ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
     if message["role"] == "user":
         st.markdown(
-            f"<div style='text-align: right; background-color: #DCF8C6; padding: 10px; border-radius: 10px; margin: 5px 0;'>{message['content']}</div>",
-            unsafe_allow_html=True)
+            f"""
+            <div style='display: flex; justify-content: flex-end; margin: 10px 0;'>
+                <div style='max-width: 70%; background-color: #d4edda; padding: 10px 14px; border-radius: 12px;'>
+                    <div style='font-weight: bold; margin-bottom: 4px; color: #155724;'>You</div>
+                    <div style='word-wrap: break-word;'>{message['content']}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
     elif message["role"] == "assistant":
         st.markdown(
-            f"<div style='text-align: left; background-color: #F1F0F0; padding: 10px; border-radius: 10px; margin: 5px 0;'>{message['content']}</div>",
-            unsafe_allow_html=True)
+            f"""
+            <div style='display: flex; justify-content: flex-start; margin: 10px 0;'>
+                <div style='max-width: 70%; background-color: #f1f0f0; padding: 10px 14px; border-radius: 12px;'>
+                    <div style='font-weight: bold; margin-bottom: 4px; color: #333;'>Assistant</div>
+                    <div style='word-wrap: break-word;'>{message['content']}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
 
 # === Chat Input ===
 input_prompt = "Type your message here..."
