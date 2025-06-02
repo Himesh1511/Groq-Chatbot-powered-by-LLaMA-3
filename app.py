@@ -117,7 +117,7 @@ if "repeat_message" in st.session_state:
 user_input = st.chat_input(input_prompt, key="chat_input")
 if user_input is None and default_input:
     st.session_state.pending_input = default_input
-    st.experimental_rerun()
+    st.rerun())
 
 if "pending_input" in st.session_state:
     user_input = st.session_state.pop("pending_input")
@@ -152,7 +152,7 @@ if user_input and groq_api_key:
 
         # Append assistant response
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
-        st.experimental_rerun()
+        st.rerun()
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
