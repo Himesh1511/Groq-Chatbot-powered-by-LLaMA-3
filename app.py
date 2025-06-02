@@ -75,16 +75,17 @@ groq_api_key = st.secrets.get("GROQ_API_KEY")
 
 # === 1. Prepare Input Prompt and Defaults ===
 input_prompt = "Type your message here..."
-default_input = None
 
+# Show info if editing or repeating, but chat_input cannot prefill
 if "edited_message" in st.session_state:
-    input_prompt = "Editing your last message..."
-    default_input = st.session_state.pop("edited_message")
+    st.info(f"Please edit your message:\n\n{st.session_state['edited_message']}")
+    st.session_state.pop("edited_message")
 elif "repeat_message" in st.session_state:
-    default_input = st.session_state.pop("repeat_message")
+    st.info(f"Please repeat your message:\n\n{st.session_state['repeat_message']}")
+    st.session_state.pop("repeat_message")
 
 # The chat_input widget should be called BEFORE displaying chat, so the reruns clear/repopulate correctly
-user_input = st.chat_input(input_prompt, key="chat_input", value=default_input)
+user_input = st.chat_input(input_prompt, key="chat_input")
 
 # === 2. Handle User Input and Generate Assistant Response ===
 if user_input and groq_api_key:
