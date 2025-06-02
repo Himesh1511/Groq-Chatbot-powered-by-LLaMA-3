@@ -4,10 +4,7 @@ import time
 import PyPDF2
 import io
 
-# Show Streamlit version for debugging
-st.write("Streamlit version:", st.__version__)
-
-# === Page Configuration ===
+# === PAGE CONFIG MUST BE FIRST STREAMLIT COMMAND ===
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
     layout="wide",
@@ -20,7 +17,7 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === Sidebar: Controls and File Upload ===
+# === SIDEBAR: Controls and File Upload ===
 with st.sidebar:
     st.header("Chat Controls")
 
@@ -70,10 +67,10 @@ with st.sidebar:
         else:
             st.warning("Could not extract content from the file.")
 
-# === Title ===
+# === TITLE ===
 st.title("Groq Chatbot powered by LLaMA 3")
 
-# === Load Groq API Key ===
+# === LOAD Groq API KEY ===
 groq_api_key = st.secrets.get("GROQ_API_KEY")
 
 # === 1. Prepare Input Prompt and Defaults ===
