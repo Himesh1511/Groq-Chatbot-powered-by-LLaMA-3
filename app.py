@@ -103,6 +103,7 @@ if "repeat_message" in st.session_state:
     default_input = st.session_state.pop("repeat_message")
 
 user_input = st.chat_input(input_prompt)
+
 if user_input is None and default_input:
     st.session_state.pending_input = default_input
     st.rerun()
@@ -110,8 +111,9 @@ if user_input is None and default_input:
 if "pending_input" in st.session_state:
     user_input = st.session_state.pop("pending_input")
 
-# === Generate Assistant Response ===
+# === Process User Input and Generate Assistant Response ===
 if user_input and groq_api_key:
+    # Append user message first so it's displayed immediately
     st.session_state.chat_history.append({"role": "user", "content": user_input})
 
     try:
