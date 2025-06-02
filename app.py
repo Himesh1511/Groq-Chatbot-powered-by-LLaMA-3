@@ -91,7 +91,6 @@ for message in st.session_state.chat_history:
             unsafe_allow_html=True
         )
 
-
 # === Chat Input ===
 input_prompt = "Type your message here..."
 default_input = None
@@ -103,7 +102,6 @@ if "edited_message" in st.session_state:
 if "repeat_message" in st.session_state:
     default_input = st.session_state.pop("repeat_message")
 
-# Streamlit does not support pre-filled st.chat_input, simulate with session workaround
 user_input = st.chat_input(input_prompt)
 if user_input is None and default_input:
     st.session_state.pending_input = default_input
@@ -115,10 +113,7 @@ if "pending_input" in st.session_state:
 # === Generate Assistant Response ===
 if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.rerun()  # Force UI to update immediately after appending user message
 
-    # After rerun, assistant response logic will execute
-if len(st.session_state.chat_history) > 1 and st.session_state.chat_history[-1]["role"] == "user":
     try:
         client = OpenAI(
             api_key=groq_api_key,
