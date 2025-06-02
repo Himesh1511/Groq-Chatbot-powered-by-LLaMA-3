@@ -29,6 +29,14 @@ with st.sidebar:
             if last_user:
                 st.session_state.repeat_message = last_user
 
+    if st.button("Edit Last Message"):
+        if st.session_state.get("chat_history"):
+            for i in reversed(range(len(st.session_state.chat_history))):
+                if st.session_state.chat_history[i]["role"] == "user":
+                    st.session_state.edited_message = st.session_state.chat_history[i]["content"]
+                    st.session_state.chat_history.pop(i)
+                    break
+
     st.subheader("Upload Document")
     uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
     file_text = ""
@@ -63,7 +71,7 @@ if "chat_history" not in st.session_state:
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === Display Chat History with refined containers ===
+# === Display Chat History ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
     if message["role"] == "user":
@@ -102,20 +110,21 @@ if "edited_message" in st.session_state:
 if "repeat_message" in st.session_state:
     default_input = st.session_state.pop("repeat_message")
 
-user_input = st.chat_input(input_prompt)
-
+# Simulate pre-filled input
+user_input = st.chat_input(input_prompt, key="chat_input")
 if user_input is None and default_input:
     st.session_state.pending_input = default_input
-    st.rerun()
+    st.experimental_rerun()
 
 if "pending_input" in st.session_state:
     user_input = st.session_state.pop("pending_input")
 
-# === Process User Input and Generate Assistant Response ===
+# === Handle Input and Generate Assistant Response ===
 if user_input and groq_api_key:
-    # Append user message first so it's displayed immediately
+    # Append user's message
     st.session_state.chat_history.append({"role": "user", "content": user_input})
 
+    # Generate assistant response in same cycle
     try:
         client = OpenAI(
             api_key=groq_api_key,
@@ -138,8 +147,9 @@ if user_input and groq_api_key:
                 unsafe_allow_html=True)
             time.sleep(0.02)
 
+        # Append assistant response
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
-        st.rerun()
+        st.experimental_rerun()
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
