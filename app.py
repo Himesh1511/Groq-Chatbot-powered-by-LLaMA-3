@@ -72,8 +72,10 @@ st.title("Groq Chatbot powered by LLaMA 3")
 
 # === LOAD Groq API KEY ===
 groq_api_key = st.secrets.get("GROQ_API_KEY")
+# Debug: show if key is loaded (do not print actual key for security)
+st.write("Groq API Key loaded?", bool(groq_api_key))
 
-# === 1. Prepare Input Prompt and Defaults ===
+# === 1. Prepare Input Prompt ===
 input_prompt = "Type your message here..."
 
 # Show info if editing or repeating, but chat_input cannot prefill
@@ -89,7 +91,6 @@ user_input = st.chat_input(input_prompt, key="chat_input")
 
 # === 2. Handle User Input and Generate Assistant Response ===
 if user_input and groq_api_key:
-    # Append user's message
     st.session_state.chat_history.append({"role": "user", "content": user_input})
 
     # Generate assistant response in the same cycle
@@ -115,12 +116,11 @@ if user_input and groq_api_key:
                 unsafe_allow_html=True)
             time.sleep(0.02)
 
-        # Append assistant response
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
         st.rerun()
 
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(f"Error: {e}")
 
 elif not groq_api_key:
     st.warning("Please provide your Groq API Key in Streamlit secrets to start chatting.")
