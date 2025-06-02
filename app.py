@@ -117,7 +117,7 @@ if "repeat_message" in st.session_state:
 user_input = st.chat_input(input_prompt, key="chat_input")
 if user_input is None and default_input:
     st.session_state.pending_input = default_input
-    st.rerun())
+    st.rerun()
 
 if "pending_input" in st.session_state:
     user_input = st.session_state.pop("pending_input")
