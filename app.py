@@ -29,13 +29,7 @@ with st.sidebar:
             if last_user:
                 st.session_state.repeat_message = last_user
 
-    if st.button("Edit Last Message"):
-        if st.session_state.get("chat_history"):
-            for i in reversed(range(len(st.session_state.chat_history))):
-                if st.session_state.chat_history[i]["role"] == "user":
-                    st.session_state.edited_message = st.session_state.chat_history[i]["content"]
-                    st.session_state.chat_history.pop(i)
-                    break
+   
 
     st.subheader("Upload Document")
     uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
