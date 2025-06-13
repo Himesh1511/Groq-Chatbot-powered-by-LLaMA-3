@@ -3,18 +3,22 @@ from openai import OpenAI
 import time
 import PyPDF2
 import io
+import traceback
 
-# === Page Configuration ===
+# Error display block at the top
+if "app_errors" in st.session_state:
+    st.error("An error occurred in the app:")
+    st.code(st.session_state.app_errors)
+    del st.session_state.app_errors
+
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# === Sidebar: Controls and File Upload ===
 with st.sidebar:
     st.header("Chat Controls")
-
     if st.button("Clear Chat"):
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
@@ -33,7 +37,6 @@ with st.sidebar:
     st.subheader("Upload Document")
     uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
     file_text = ""
-
     if uploaded_file:
         if uploaded_file.type == "application/pdf":
             pdf_reader = PyPDF2.PdfReader(uploaded_file)
@@ -42,30 +45,22 @@ with st.sidebar:
         elif uploaded_file.type == "text/plain":
             stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
             file_text = stringio.read()
-
         if file_text.strip():
             st.success("File uploaded and content loaded.")
-            # Reduce PDF size for context window
             st.session_state['uploaded_file_text'] = file_text[:1000]
         else:
             st.warning("Could not extract content from the file.")
 
-# === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
-
-# === Show Streamlit version for debugging ===
 st.write("Streamlit version:", st.__version__)
 
-# === Load Groq API Key ===
 groq_api_key = st.secrets.get("GROQ_API_KEY")
 
-# === Initialize Chat History ===
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
-# === Display Chat History ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
     if message["role"] == "user":
@@ -93,7 +88,6 @@ for message in st.session_state.chat_history:
             unsafe_allow_html=True
         )
 
-# === Chat Input ===
 input_prompt = "Type your message here..."
 default_input = None
 
@@ -112,12 +106,10 @@ if user_input is None and default_input:
 if "pending_input" in st.session_state:
     user_input = st.session_state.pop("pending_input")
 
-# === Handle Input (User) ===
 if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
     st.rerun()
 
-# === Generate Assistant Response ===
 if (
     groq_api_key 
     and len(st.session_state.chat_history) > 0 
@@ -152,8 +144,8 @@ if (
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
         st.rerun()
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.session_state.app_errors = traceback.format_exc()
+        st.rerun()
 
 elif not groq_api_key:
     st.warning("Please provide your Groq API Key in Streamlit secrets to start chatting.")
-    
