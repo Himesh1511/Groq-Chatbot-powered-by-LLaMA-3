@@ -4,12 +4,14 @@ import time
 import PyPDF2
 import io
 
+# === Page Configuration ===
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# === Sidebar: Controls and File Upload ===
 with st.sidebar:
     st.header("Chat Controls")
 
@@ -19,6 +21,7 @@ with st.sidebar:
         ]
         st.session_state.pop("repeat_message", None)
         st.session_state.pop("edited_message", None)
+        st.session_state.pop("uploaded_file_text", None)
 
     if st.button("Repeat Last Message"):
         if st.session_state.get("chat_history"):
@@ -42,23 +45,27 @@ with st.sidebar:
 
         if file_text.strip():
             st.success("File uploaded and content loaded.")
-            st.session_state.chat_history.append({
-                "role": "system",
-                "content": f"The following document has been uploaded by the user. Use it to answer questions:\n{file_text[:4000]}"
-            })
+            # Store file text in session state for use during chat, NOT in chat_history
+            st.session_state['uploaded_file_text'] = file_text[:4000]
         else:
             st.warning("Could not extract content from the file.")
 
+# === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
+
+# === Show Streamlit version for debugging ===
 st.write("Streamlit version:", st.__version__)
 
+# === Load Groq API Key ===
 groq_api_key = st.secrets.get("GROQ_API_KEY")
 
+# === Initialize Chat History ===
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "system", "content": "You are a helpful assistant powered by LLaMA 3 on Groq."}
     ]
 
+# === Display Chat History ===
 st.write("### Chat")
 for message in st.session_state.chat_history:
     if message["role"] == "user":
@@ -86,6 +93,7 @@ for message in st.session_state.chat_history:
             unsafe_allow_html=True
         )
 
+# === Chat Input ===
 input_prompt = "Type your message here..."
 default_input = None
 
@@ -104,19 +112,27 @@ if user_input is None and default_input:
 if "pending_input" in st.session_state:
     user_input = st.session_state.pop("pending_input")
 
-# --- THE FIX IS HERE ---
+# === Handle Input (User) ===
 if user_input and groq_api_key:
-    # Only append the user message and rerun, do not generate assistant message yet
+    # Only append the user message and rerun (assistant will reply in next run)
     st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.rerun()  # This rerun will trigger the assistant response in the next block
+    st.rerun()
 
-# Now, if the last message is from the user (and not just added), generate a reply.
+# === Generate Assistant Response ===
 if (
     groq_api_key and 
     len(st.session_state.chat_history) > 0 and
     st.session_state.chat_history[-1]["role"] == "user" and
     (len(st.session_state.chat_history) < 2 or st.session_state.chat_history[-2]["role"] != "assistant")
 ):
+    # Prepare messages for assistant
+    messages = st.session_state.chat_history.copy()
+    # If a file is uploaded, inject as a (temporary) system message for this completion only
+    if 'uploaded_file_text' in st.session_state:
+        messages.insert(1, {
+            "role": "system",
+            "content": f"The following document has been uploaded by the user. Use it to answer questions:\n{st.session_state['uploaded_file_text']}"
+        })
     try:
         client = OpenAI(
             api_key=groq_api_key,
@@ -125,7 +141,7 @@ if (
 
         response = client.chat.completions.create(
             model="llama3-8b-8192",
-            messages=st.session_state.chat_history,
+            messages=messages,
             stream=True
         )
 
