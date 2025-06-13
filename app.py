@@ -140,7 +140,7 @@ if (
         )
 
         response = client.chat.completions.create(
-            model="llama3-70b-8192"
+            model="llama3-70b-8192",
             messages=messages,
             stream=True
         )
