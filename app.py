@@ -3,8 +3,6 @@ from openai import OpenAI
 import time
 import PyPDF2
 import io
-from PIL import Image  # NEW: For image processing
-import base64          # NEW: For image encoding
 
 # === Page Configuration ===
 st.set_page_config(
@@ -53,24 +51,7 @@ with st.sidebar:
         else:
             st.warning("Could not extract content from the file.")
 
-    # === Image Upload ===
-    st.subheader("Upload Image")
-    image_file = st.file_uploader("Upload an image for analysis", type=["png", "jpg", "jpeg"])
-    if image_file:
-        try:
-            image = Image.open(image_file)
-            st.image(image, caption="Uploaded Image", use_column_width=True)
-            # Convert image to base64
-            buffered = io.BytesIO()
-            image.save(buffered, format="PNG")
-            img_bytes = buffered.getvalue()
-            img_b64 = base64.b64encode(img_bytes).decode()
-            # Save base64 and name in session for use in main chat
-            st.session_state['uploaded_image_b64'] = img_b64
-            st.session_state['uploaded_image_name'] = image_file.name
-            st.success("Image uploaded and ready for analysis.")
-        except Exception as e:
-            st.error(f"Failed to process image: {e}")
+  
 
 # === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
