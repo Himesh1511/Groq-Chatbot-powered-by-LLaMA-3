@@ -1,3 +1,4 @@
+
 import streamlit as st
 from openai import OpenAI
 import time
@@ -29,6 +30,8 @@ with st.sidebar:
             if last_user:
                 st.session_state.repeat_message = last_user
 
+   
+
     st.subheader("Upload Document")
     uploaded_file = st.file_uploader("Upload a .pdf or .txt file", type=["pdf", "txt"])
     file_text = ""
@@ -50,8 +53,6 @@ with st.sidebar:
             })
         else:
             st.warning("Could not extract content from the file.")
-
-  
 
 # === Title ===
 st.title("Groq Chatbot powered by LLaMA 3")
@@ -121,21 +122,6 @@ if user_input and groq_api_key:
     # Append user's message
     st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-    # Prepare messages for the assistant
-    messages = st.session_state.chat_history.copy()
-
-    # If an image was uploaded, add it as a "tool" message for multimodal models
-    image_b64 = st.session_state.get('uploaded_image_b64')
-    image_name = st.session_state.get('uploaded_image_name')
-
-    if image_b64 and image_name:
-        # Add a placeholder system message (adjust as needed for your backend support)
-        messages.append({
-            "role": "user",
-            "content": f"Analyze this image: {image_name}. If relevant, use the image to answer my question.",
-            "image": image_b64  # Not a standard OpenAI field; for demonstration and backend adaptation.
-        })
-
     # Generate assistant response in same cycle
     try:
         client = OpenAI(
@@ -143,11 +129,9 @@ if user_input and groq_api_key:
             base_url="https://api.groq.com/openai/v1"
         )
 
-        # If your backend supports vision/multimodal, adapt the API call accordingly.
-        # For demonstration, send the image as part of the prompt/context.
         response = client.chat.completions.create(
             model="llama3-8b-8192",
-            messages=messages,
+            messages=st.session_state.chat_history,
             stream=True
         )
 
@@ -163,12 +147,6 @@ if user_input and groq_api_key:
 
         # Append assistant response
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
-
-        # Clear the uploaded image after analysis (optional)
-        if 'uploaded_image_b64' in st.session_state:
-            del st.session_state['uploaded_image_b64']
-            del st.session_state['uploaded_image_name']
-
         st.rerun()
 
     except Exception as e:
