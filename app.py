@@ -117,11 +117,6 @@ if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
     st.rerun()
 
-# DEBUG output
-st.write("DEBUG: chat_history", st.session_state.chat_history)
-if 'uploaded_file_text' in st.session_state:
-    st.write("DEBUG: uploaded_file_text exists and length", len(st.session_state['uploaded_file_text']))
-
 # === Generate Assistant Response ===
 if (
     groq_api_key 
@@ -135,7 +130,6 @@ if (
             "role": "system",
             "content": f"A document has been uploaded by the user. Here is the content (truncated):\n{st.session_state['uploaded_file_text'][:1000]}"
         })
-    st.write("DEBUG: messages for LLM", messages)
     try:
         client = OpenAI(
             api_key=groq_api_key,
@@ -159,7 +153,7 @@ if (
         st.rerun()
     except Exception as e:
         st.error(f"Error: {str(e)}")
-        st.write("DEBUG: Exception occurred:", e)
 
 elif not groq_api_key:
     st.warning("Please provide your Groq API Key in Streamlit secrets to start chatting.")
+    
