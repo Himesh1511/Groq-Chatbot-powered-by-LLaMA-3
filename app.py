@@ -5,17 +5,18 @@ import PyPDF2
 import io
 import traceback
 
-# Error display block at the top
-if "app_errors" in st.session_state:
-    st.error("An error occurred in the app:")
-    st.code(st.session_state.app_errors)
-    del st.session_state.app_errors
-
+# This MUST be the first Streamlit command in your script
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Error display block after set_page_config
+if "app_errors" in st.session_state:
+    st.error("An error occurred in the app:")
+    st.code(st.session_state.app_errors)
+    del st.session_state.app_errors
 
 with st.sidebar:
     st.header("Chat Controls")
@@ -127,8 +128,9 @@ if (
             api_key=groq_api_key,
             base_url="https://api.groq.com/openai/v1"
         )
+        # Using a valid model from Groq
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama3-8b-8192",  # Updated to a valid model
             messages=messages,
             stream=True
         )
