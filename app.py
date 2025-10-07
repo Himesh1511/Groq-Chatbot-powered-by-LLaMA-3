@@ -5,7 +5,7 @@ import PyPDF2
 import io
 import traceback
 
-# This MUST be the first Streamlit command in your script
+
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
     layout="wide",
@@ -130,7 +130,7 @@ if (
         )
         # Using a valid model from Groq
         response = client.chat.completions.create(
-            model="llama3-8b-8192",  # Updated to a valid model
+            model="llama-3.1-8b-instant",  
             messages=messages,
             stream=True
         )
