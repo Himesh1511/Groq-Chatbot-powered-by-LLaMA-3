@@ -5,7 +5,7 @@ import PyPDF2
 import io
 import traceback
 
-
+# This MUST be the first Streamlit command in your script
 st.set_page_config(
     page_title="Groq LLaMA 3 Chatbot",
     layout="wide",
@@ -111,29 +111,46 @@ if user_input and groq_api_key:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
     st.rerun()
 
+# Check if we need to generate a response
 if (
     groq_api_key 
     and len(st.session_state.chat_history) > 0 
     and st.session_state.chat_history[-1]["role"] == "user" 
     and (len(st.session_state.chat_history) < 2 or st.session_state.chat_history[-2]["role"] != "assistant")
 ):
+    # Create a copy of messages for the API call
     messages = st.session_state.chat_history.copy()
+    
+    # Add document context if available
     if 'uploaded_file_text' in st.session_state:
+        # Insert document info after the system message
         messages.insert(1, {
             "role": "system",
             "content": f"A document has been uploaded by the user. Here is the content (truncated):\n{st.session_state['uploaded_file_text'][:1000]}"
         })
+    
     try:
         client = OpenAI(
             api_key=groq_api_key,
             base_url="https://api.groq.com/openai/v1"
         )
-        # Using a valid model from Groq
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",  
-            messages=messages,
-            stream=True
-        )
+        
+        # Try with the requested model first
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=messages,
+                stream=True
+            )
+        except Exception as model_error:
+            st.warning(f"Error with llama-3.1-8b-instant: {str(model_error)}. Trying with llama3-8b-8192...")
+            # Fallback to a different model
+            response = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=messages,
+                stream=True
+            )
+        
         assistant_response = ""
         response_container = st.empty()
         for chunk in response:
@@ -143,8 +160,11 @@ if (
                 f"<div style='text-align: left; background-color: #F1F0F0; padding: 10px; border-radius: 10px; margin: 5px 0;'><strong>Assistant:</strong> {assistant_response}</div>",
                 unsafe_allow_html=True)
             time.sleep(0.02)
+        
+        # Add the assistant response to chat history
         st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
         st.rerun()
+        
     except Exception as e:
         st.session_state.app_errors = traceback.format_exc()
         st.rerun()
